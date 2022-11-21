@@ -93,10 +93,10 @@ def reconnect(scket,
     print("Reconnecting...")
     connect(scket, device, address, port, buffer_size)
     subscribe_to_data(scket, buffer_size)
-    stream(outlet_acc, outlet_bvp, outlet_gsr, outlet_tmp)
+    stream(scket, buffer_size, outlet_acc, outlet_bvp, outlet_gsr, outlet_tmp)
 
 
-def stream(outlet_acc, outlet_bvp, outlet_gsr, outlet_tmp):
+def stream(scket, buffer_size, outlet_acc, outlet_bvp, outlet_gsr, outlet_tmp):
     try:
         print("Streaming...")
         while True:
@@ -163,7 +163,7 @@ def main():
     time.sleep(1)
 
     # Start streaming
-    stream(out_acc, out_bvp, out_gsr, out_tmp)
+    stream(scket, args.buffer_size, out_acc, out_bvp, out_gsr, out_tmp)
 
 
 if __name__ == "__main__":
