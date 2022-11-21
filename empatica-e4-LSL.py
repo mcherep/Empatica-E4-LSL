@@ -1,139 +1,170 @@
+# Manuel Cherep <mcherep@mit.edu>
+# Original code from https://github.com/HectorCarral/Empatica-E4-LSL
+
+""" Connect to the E4 server, subscribe to data streams and stream """
+
+import argparse
 import socket
 import time
 import pylsl
 
-# SELECT DATA TO STREAM
-acc = True      # 3-axis acceleration
-bvp = True      # Blood Volume Pulse
-gsr = True      # Galvanic Skin Response (Electrodermal Activity)
-tmp = True      # Temperature
 
-serverAddress = '127.0.0.1'
-serverPort = 28000
-bufferSize = 4096
-
-deviceID = '1451CD' # 'A02088'
-
-def connect():
-    global s
-    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    s.settimeout(3)
-
-    print("Connecting to server")
-    s.connect((serverAddress, serverPort))
-    print("Connected to server\n")
+def connect(scket, device, address, port, buffer_size):
+    print("Connecting to server...")
+    scket.connect((address, port))
 
     print("Devices available:")
-    s.send("device_list\r\n".encode())
-    response = s.recv(bufferSize)
+    scket.send("device_list\r\n".encode())
+    response = scket.recv(buffer_size)
     print(response.decode("utf-8"))
 
-    print("Connecting to device")
-    s.send(("device_connect " + deviceID + "\r\n").encode())
-    response = s.recv(bufferSize)
+    print("Connecting to device...")
+    scket.send(("device_connect " + device + "\r\n").encode())
+    response = scket.recv(buffer_size)
     print(response.decode("utf-8"))
 
-    print("Pausing data receiving")
-    s.send("pause ON\r\n".encode())
-    response = s.recv(bufferSize)
+    print("Pausing data receiving...")
+    scket.send("pause ON\r\n".encode())
+    response = scket.recv(buffer_size)
     print(response.decode("utf-8"))
-connect()
 
-time.sleep(1)
 
-def suscribe_to_data():
-    if acc:
-        print("Suscribing to ACC")
-        s.send(("device_subscribe " + 'acc' + " ON\r\n").encode())
-        response = s.recv(bufferSize)
-        print(response.decode("utf-8"))
-    if bvp:
-        print("Suscribing to BVP")
-        s.send(("device_subscribe " + 'bvp' + " ON\r\n").encode())
-        response = s.recv(bufferSize)
-        print(response.decode("utf-8"))
-    if gsr:
-        print("Suscribing to GSR")
-        s.send(("device_subscribe " + 'gsr' + " ON\r\n").encode())
-        response = s.recv(bufferSize)
-        print(response.decode("utf-8"))
-    if tmp:
-        print("Suscribing to Temp")
-        s.send(("device_subscribe " + 'tmp' + " ON\r\n").encode())
-        response = s.recv(bufferSize)
-        print(response.decode("utf-8"))
+def subscribe_to_data(scket, buffer_size):
+    print("Suscribing to streams...")
 
-    print("Resuming data receiving")
-    s.send("pause OFF\r\n".encode())
-    response = s.recv(bufferSize)
+    scket.send(("device_subscribe " + 'acc' + " ON\r\n").encode())
+    response = scket.recv(buffer_size)
     print(response.decode("utf-8"))
-suscribe_to_data()
+    scket.send(("device_subscribe " + 'bvp' + " ON\r\n").encode())
+    response = scket.recv(buffer_size)
+    print(response.decode("utf-8"))
+    scket.send(("device_subscribe " + 'gsr' + " ON\r\n").encode())
+    response = scket.recv(buffer_size)
+    print(response.decode("utf-8"))
+    scket.send(("device_subscribe " + 'tmp' + " ON\r\n").encode())
+    response = scket.recv(buffer_size)
+    print(response.decode("utf-8"))
 
-def prepare_LSL_streaming():
+    print("Resuming data receiving...")
+    scket.send("pause OFF\r\n".encode())
+    response = scket.recv(buffer_size)
+    print(response.decode("utf-8"))
+
+
+def prepare_LSL_streaming(name):
     print("Starting LSL streaming")
-    if acc:
-        infoACC = pylsl.StreamInfo('acc','ACC',3,32,'int32','ACC-empatica_e4');
-        global outletACC
-        outletACC = pylsl.StreamOutlet(infoACC)
-    if bvp:
-        infoBVP = pylsl.StreamInfo('bvp','BVP',1,64,'float32','BVP-empatica_e4');
-        global outletBVP
-        outletBVP = pylsl.StreamOutlet(infoBVP)
-    if gsr:
-        infoGSR = pylsl.StreamInfo('gsr','GSR',1,4,'float32','GSR-empatica_e4');
-        global outletGSR
-        outletGSR = pylsl.StreamOutlet(infoGSR)
-    if tmp:
-        infoTemp = pylsl.StreamInfo('tmp','Temp',1,4,'float32','Temp-empatica_e4');
-        global outletTemp
-        outletTemp = pylsl.StreamOutlet(infoTemp)
-prepare_LSL_streaming()
+    # TODO: IDs must be unique
+    outlet_acc = pylsl.StreamOutlet(pylsl.StreamInfo('acc' + '_' + name,  # name
+                                                     'acc',  # category
+                                                     3,  # channels
+                                                     32,  # frequency
+                                                     'int32',  # type
+                                                     'ACC-e4' + '_' + name))  # id
+    outlet_bvp = pylsl.StreamOutlet(pylsl.StreamInfo('bvp' + '_' + name,  # name
+                                                     'bvp',  # category
+                                                     1,  # channels
+                                                     64,  # frequency
+                                                     'float32',  # type
+                                                     'BVP-e4' + '_' + name))  # id
+    outlet_gsr = pylsl.StreamOutlet(pylsl.StreamInfo('gsr' + '_' + name,  # name
+                                                     'gsr',  # category
+                                                     1,  # channels
+                                                     4,  # frequency
+                                                     'float32',  # type
+                                                     'GSR-e4' + '_' + name))  # id
+    outlet_tmp = pylsl.StreamOutlet(pylsl.StreamInfo('tmp' + '_' + name,  # name
+                                                     'tmp',  # category
+                                                     1,  # channels
+                                                     4,  # frequency
+                                                     'float32',  # type
+                                                     'Tmp-e4' + '_' + name))  # id
+    return outlet_acc, outlet_bvp, outlet_gsr, outlet_tmp
 
-time.sleep(1)
 
-def reconnect():
+def reconnect(scket,
+              device,
+              address,
+              port,
+              buffer_size,
+              outlet_acc,
+              outlet_bvp,
+              outlet_gsr,
+              outlet_tmp):
     print("Reconnecting...")
-    connect()
-    suscribe_to_data()
-    stream()
+    connect(scket, device, address, port, buffer_size)
+    subscribe_to_data(scket, buffer_size)
+    stream(outlet_acc, outlet_bvp, outlet_gsr, outlet_tmp)
 
-def stream():
+
+def stream(outlet_acc, outlet_bvp, outlet_gsr, outlet_tmp):
     try:
         print("Streaming...")
         while True:
             try:
-                response = s.recv(bufferSize).decode("utf-8")
-                #print(response)
+                response = scket.recv(buffer_size).decode("utf-8")
                 if "connection lost to device" in response:
                     print(response.decode("utf-8"))
-                    reconnect()
+                    reconnect(outlet_acc, outlet_bvp, outlet_gsr, outlet_tmp)
                     break
                 samples = response.split("\n")
                 for i in range(len(samples)-1):
                     stream_type = samples[i].split()[0]
                     if stream_type == "E4_Acc":
-                        timestamp = float(samples[i].split()[1].replace(',','.'))
-                        data = [int(samples[i].split()[2].replace(',','.')), int(samples[i].split()[3].replace(',','.')), int(samples[i].split()[4].replace(',','.'))]
-                        outletACC.push_sample(data, timestamp=timestamp)
-                    if stream_type == "E4_Bvp":
-                        timestamp = float(samples[i].split()[1].replace(',','.'))
-                        data = float(samples[i].split()[2].replace(',','.'))
-                        outletBVP.push_sample([data], timestamp=timestamp)
-                    if stream_type == "E4_Gsr":
-                        timestamp = float(samples[i].split()[1].replace(',','.'))
-                        data = float(samples[i].split()[2].replace(',','.'))
-                        outletGSR.push_sample([data], timestamp=timestamp)
-                    if stream_type == "E4_Temperature":
-                        timestamp = float(samples[i].split()[1].replace(',','.'))
-                        data = float(samples[i].split()[2].replace(',','.'))
-                        outletTemp.push_sample([data], timestamp=timestamp)
-                #time.sleep(1)
+                        data = [int(samples[i].split()[2].replace(',', '.')),
+                                int(samples[i].split()[3].replace(',', '.')),
+                                int(samples[i].split()[4].replace(',', '.'))]
+                        outlet_acc.push_sample(data)
+                    elif stream_type == "E4_Bvp":
+                        data = [float(samples[i].split()[2].replace(',', '.'))]
+                        outlet_bvp.push_sample(data)
+                    elif stream_type == "E4_Gsr":
+                        data = [float(samples[i].split()[2].replace(',', '.'))]
+                        outlet_gsr.push_sample(data)
+                    elif stream_type == "E4_Temperature":
+                        data = [float(samples[i].split()[2].replace(',', '.'))]
+                        outlet_tmp.push_sample(data)
             except socket.timeout:
                 print("Socket timeout")
-                reconnect()
+                reconnect(outlet_acc, outlet_bvp, outlet_gsr, outlet_tmp)
                 break
     except KeyboardInterrupt:
-        print("Disconnecting from device")
-        s.send("device_disconnect\r\n".encode())
-        s.close()
-stream()
+        print("Disconnecting from device...")
+        scket.send("device_disconnect\r\n".encode())
+        scket.close()
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--address', type=str, default='127.0.0.1',
+                        required=False)
+    parser.add_argument('--port', type=int, default=28000,
+                        required=False)
+    parser.add_argument('--buffer_size', type=int, default=4096,
+                        required=False)
+    parser.add_argument('--device', type=str,
+                        required=True)
+    parser.add_argument('--name', type=str, default='',
+                        required=False)
+
+    args = parser.parse_args()
+
+    scket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    scket.settimeout(3)
+
+    # Connect to the E4 server
+    connect(scket, args.device, args.address, args.port, args.buffer_size)
+    time.sleep(1)
+
+    # Subscribe to the data streams
+    subscribe_to_data(scket, args.buffer_size)
+
+    # Prepare LSL streaming
+    out_acc, out_bvp, out_gsr, out_tmp = prepare_LSL_streaming(args.name)
+    time.sleep(1)
+
+    # Start streaming
+    stream(out_acc, out_bvp, out_gsr, out_tmp)
+
+
+if __name__ == "__main__":
+    main()
