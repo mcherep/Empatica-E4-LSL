@@ -93,10 +93,10 @@ def reconnect(scket,
     print("Reconnecting...")
     connect(scket, device, address, port, buffer_size)
     subscribe_to_data(scket, buffer_size)
-    stream(scket, buffer_size, outlet_acc, outlet_bvp, outlet_gsr, outlet_tmp)
+    stream(scket, device, address, port, buffer_size, outlet_acc, outlet_bvp, outlet_gsr, outlet_tmp)
 
 
-def stream(scket, buffer_size, outlet_acc, outlet_bvp, outlet_gsr, outlet_tmp):
+def stream(scket, device, address, port, buffer_size, outlet_acc, outlet_bvp, outlet_gsr, outlet_tmp):
     try:
         print("Streaming...")
         while True:
@@ -104,7 +104,7 @@ def stream(scket, buffer_size, outlet_acc, outlet_bvp, outlet_gsr, outlet_tmp):
                 response = scket.recv(buffer_size).decode("utf-8")
                 if "connection lost to device" in response:
                     print(response.decode("utf-8"))
-                    reconnect(outlet_acc, outlet_bvp, outlet_gsr, outlet_tmp)
+                    reconnect(scket, device, address, port, buffer_size, outlet_acc, outlet_bvp, outlet_gsr, outlet_tmp)
                     break
                 samples = response.split("\n")
                 for i in range(len(samples)-1):
@@ -125,7 +125,7 @@ def stream(scket, buffer_size, outlet_acc, outlet_bvp, outlet_gsr, outlet_tmp):
                         outlet_tmp.push_sample(data)
             except socket.timeout:
                 print("Socket timeout")
-                reconnect(outlet_acc, outlet_bvp, outlet_gsr, outlet_tmp)
+                reconnect(scket, device, address, port, buffer_size, outlet_acc, outlet_bvp, outlet_gsr, outlet_tmp)
                 break
     except KeyboardInterrupt:
         print("Disconnecting from device...")
@@ -163,7 +163,7 @@ def main():
     time.sleep(1)
 
     # Start streaming
-    stream(scket, args.buffer_size, out_acc, out_bvp, out_gsr, out_tmp)
+    stream(scket, args.device, args.address, args.port, args.buffer_size, out_acc, out_bvp, out_gsr, out_tmp)
 
 
 if __name__ == "__main__":
